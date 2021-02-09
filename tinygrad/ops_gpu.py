@@ -1,6 +1,11 @@
 import numpy as np
 
 from .tensor import Function
+import reikna.cluda as cluda
+from reikna.linalg import MatrixMul
+
+api = cluda.cuda_api()
+thr = api.Thread.create()
 
 
 # ************* unary ops *************
@@ -182,16 +187,27 @@ class Slice(Function):
 # ************* processing ops *************
 
 class Matmul(Function):
+
+    @staticmethod
+    def mm(input, weight):
+        input = input.gparray
+        weight = weight.gparray
+        res_dev = thr.array((input.shape[0], weight.shape[1]), dtype=np.float32)
+        dot = MatrixMul(input, weight, out_arr=res_dev)
+        dotc = dot.compile(thr)
+        dotc(res_dev, input, weight)
+        return res_dev.get()
+
     @staticmethod
     def forward(ctx, input, weight):
         ctx.save_for_backward(input, weight)
-        return input @ weight
+        return Matmul.mm(input, weight)
 
     @staticmethod
     def backward(ctx, grad_output):
         input, weight = ctx.saved_tensors
-        grad_input = grad_output @ np.swapaxes(weight, -2, -1)
-        grad_weight = np.swapaxes(input, -2, -1) @ grad_output
+        grad_input = Matmul.mm(grad_output, np.swapaxes(weight, -2, -1))
+        grad_weight = Matmul.mm(np.swapaxes(input, -2, -1), grad_output)
         return grad_input, grad_weight
 
 
