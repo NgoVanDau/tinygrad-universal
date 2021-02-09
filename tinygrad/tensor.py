@@ -46,7 +46,7 @@ class ProfileOp:
 class GPUBuffer:
     def __init__(self, shape, hostbuf=None):
         self.shape, self.dtype = tuple(shape), np.float32
-        self.gparray = gpuarray.to_gpu(hostbuf.astype(np.float32))
+        self.gparray = None if hostbuf is None else gpuarray.to_gpu(hostbuf.astype(np.float32))
 
     def __repr__(self):
         return f"<GPUBuffer with shape {self.shape!r}>"

@@ -1,11 +1,17 @@
 import numpy as np
+from reikna.algorithms import predicate_sum, Reduce
 
-from .tensor import Function
+from .tensor import Function, GPUBuffer
 import reikna.cluda as cluda
 from reikna.linalg import MatrixMul
 
 api = cluda.cuda_api()
 thr = api.Thread.create()
+i32 = np.int32
+
+
+def buffer_new(shape, zero=False):
+    return GPUBuffer(shape, hostbuf=None if not zero else np.zeros(shape, dtype=np.float32))
 
 
 # ************* unary ops *************
@@ -53,13 +59,22 @@ class Sum(Function):
     @staticmethod
     def forward(ctx, input, axis=None):
         ctx.save_for_backward(input, axis)
-        return np.array([input.sum()]) if axis is None else input.sum(axis=axis)
+        input = input.gparray
+        ret = buffer_new(None)
+        rd = Reduce(input, predicate_sum(input.dtype), axes=(axis,) if axis is not None else None)
+        b_dev = thr.empty_like(rd.parameter.output)
+        rdc = rd.compile(thr)
+        rdc(b_dev, input)
+        ret.gparray = b_dev.get()
+        if axis is not None:
+            ret.shape = tuple([input.shape[i] for i in range(len(input.shape)) if i not in axis])
+        return ret
 
     @staticmethod
     def backward(ctx, grad_output):
         input, axis = ctx.saved_tensors
-        axis = [axis] if type(axis) is int else axis
         shape = [1 if axis is None or i in axis else input.shape[i] for i in range(len(input.shape))]
+        output = GPUBuffer(shape, hostbuf=grad_output)
         return grad_output.reshape(shape) + np.zeros_like(input)
 
 
@@ -189,25 +204,30 @@ class Slice(Function):
 class Matmul(Function):
 
     @staticmethod
-    def mm(input, weight):
+    def mm(ctx, input, weight, forward=True):
+        cnt = np.prod(input.shape[0:-2]) if len(input.shape) > 2 else 1
+        isize, msize, osize = i32(input.shape[-2]), i32(input.shape[-1]), i32(weight.shape[-1])
+        ret = buffer_new(list(input.shape[0:-2]) + [isize, osize])
         input = input.gparray
         weight = weight.gparray
         res_dev = thr.array((input.shape[0], weight.shape[1]), dtype=np.float32)
         dot = MatrixMul(input, weight, out_arr=res_dev)
         dotc = dot.compile(thr)
         dotc(res_dev, input, weight)
-        return res_dev.get()
+        if forward:
+            ctx.save_for_backward(input, weight, res_dev.get(), cnt)
+        ret.gparray = res_dev.get()
+        return ret
 
     @staticmethod
     def forward(ctx, input, weight):
-        ctx.save_for_backward(input, weight)
-        return Matmul.mm(input, weight)
+        return Matmul.mm(ctx, input, weight)
 
     @staticmethod
     def backward(ctx, grad_output):
         input, weight = ctx.saved_tensors
-        grad_input = Matmul.mm(grad_output, np.swapaxes(weight, -2, -1))
-        grad_weight = Matmul.mm(np.swapaxes(input, -2, -1), grad_output)
+        grad_input = Matmul.mm(ctx, grad_output, np.swapaxes(weight, -2, -1), forward=False)
+        grad_weight = Matmul.mm(ctx, np.swapaxes(input, -2, -1), grad_output, forward=False)
         return grad_input, grad_weight
 
 
