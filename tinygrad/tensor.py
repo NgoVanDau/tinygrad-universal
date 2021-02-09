@@ -311,7 +311,7 @@ def register(name, fxn, device=Device.CPU):
                                                                                                               Tensor) else arg
              for arg in x]
         f = Tensor.ops[tt.device][name]
-        f.cl_ctx, f.cl_queue, f.device = cl_ctx, cl_queue, tt.device
+        f.device = tt.device
         return f.apply(f, *x, **kwargs)
 
     setattr(Tensor, name, dispatch)
@@ -336,7 +336,8 @@ from tinygrad import ops_cpu
 
 _register_ops(ops_cpu)
 try:
-    import pyopencl as cl
+    import pycuda.driver as cuda
+    import pycuda.autoinit
     # TODO: move this import to require_init_gpu?
     from tinygrad import ops_gpu
 
