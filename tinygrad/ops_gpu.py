@@ -1,7 +1,7 @@
 import functools
 
 import numpy as np
-import pyopencl as cl
+import pycuda as cuda
 
 from .tensor import Function, GPUBuffer
 

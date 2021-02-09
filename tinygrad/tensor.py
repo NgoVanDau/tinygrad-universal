@@ -46,7 +46,7 @@ cl_ctx, cl_queue = None, None
 
 
 def require_init_gpu():
-    if not GPU: raise Exception("No GPU Support, install pyopencl")
+    if not GPU: raise Exception("No GPU Support, install pycuda")
     global cl_ctx, cl_queue
     if cl_queue is None:
         devices = cl.get_platforms()[0].get_devices(device_type=cl.device_type.GPU)
