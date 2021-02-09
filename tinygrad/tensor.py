@@ -7,6 +7,7 @@ from collections import defaultdict
 import numpy as np
 
 # **** profiler ****
+from pycuda import gpuarray
 
 DEBUG = os.getenv("DEBUG", None) is not None
 if DEBUG:
@@ -42,28 +43,10 @@ class ProfileOp:
 
 # **** GPU functions ****
 
-cl_ctx, cl_queue = None, None
-
-
-def require_init_gpu():
-    if not GPU: raise Exception("No GPU Support, install pycuda")
-    global cl_ctx, cl_queue
-    if cl_queue is None:
-        devices = cl.get_platforms()[0].get_devices(device_type=cl.device_type.GPU)
-        if len(devices) == 0:
-            devices = cl.get_platforms()[0].get_devices(device_type=cl.device_type.CPU)
-        cl_ctx = cl.Context(devices=devices)
-        # this is an in-order command queue
-        cl_queue = cl.CommandQueue(cl_ctx)
-
-
 class GPUBuffer:
     def __init__(self, shape, hostbuf=None):
         self.shape, self.dtype = tuple(shape), np.float32
-        self.cl = hostbuf.cl if isinstance(hostbuf, GPUBuffer) else \
-            cl.Buffer(cl_ctx, cl.mem_flags.READ_WRITE | (cl.mem_flags.COPY_HOST_PTR if hostbuf is not None else 0),
-                      4 * np.prod(shape),
-                      hostbuf=hostbuf.astype(np.float32).ravel() if hostbuf is not None else None)
+        self.gparray = gpuarray.to_gpu(hostbuf.astype(np.float32))
 
     def __repr__(self):
         return f"<GPUBuffer with shape {self.shape!r}>"
@@ -164,10 +147,8 @@ class Tensor:
     def _move_data(data, device):
         if isinstance(data, GPUBuffer):
             if device == Device.GPU: return data
-            old = data
-            data = np.empty(old.shape, dtype=np.float32)
             with ProfileOp("toCPU", [data]):
-                cl.enqueue_copy(cl_queue, data, old.cl, is_blocking=True)
+                data = data.gparray.get()
 
         elif "ANETensor" in str(type(data)):
             if device == Device.ANE: return data
@@ -183,7 +164,6 @@ class Tensor:
             Tensor.did_float_warning = True
 
         if device == Device.GPU:
-            require_init_gpu()
             with ProfileOp("toGPU", [data]):
                 return GPUBuffer(data.shape, data)
 
