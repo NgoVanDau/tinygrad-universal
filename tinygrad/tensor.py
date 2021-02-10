@@ -52,21 +52,9 @@ class GPUBuffer:
         return f"<GPUBuffer with shape {self.shape!r} and data {self.cl.get()}>"
 
 
-# **** ANE functions ****
-
-ane = None
-
-
-def require_init_ane():
-    global ane
-    if ane is None:
-        import ane.lib.ane, tinygrad.ops_ane
-        ane = ane.lib.ane.ANE()
-
-
 # **** start with two base classes, Tensor and Function ****
 
-class Device: CPU, GPU, ANE = 0, 1, 2
+class Device: CPU, GPU = 0, 1
 
 
 DEFAULT_DEVICE = Device.CPU if os.environ.get("GPU", 0) != "1" else Device.GPU
@@ -164,11 +152,6 @@ class Tensor:
             with ProfileOp("toCPU", [data]):
                 return old.cl.get().reshape(old.shape)
 
-        elif "ANETensor" in str(type(data)):
-            if device == Device.ANE: return data
-            with ProfileOp("toCPU", [data]):
-                data = data.data().astype(np.float32)
-
         if not isinstance(data, np.ndarray):
             data = np.array(data, dtype=np.float32)
 
@@ -181,12 +164,6 @@ class Tensor:
             with ProfileOp("toGPU", [data]):
                 return GPUBuffer(data.shape, data)
 
-        elif device == Device.ANE:
-            require_init_ane()
-            with ProfileOp("toANE", [data]):
-                ndata = ane.tensor(data.shape)
-                ndata.data()[:] = data
-                return ndata
         return data
 
     def to_(self, device):
@@ -331,7 +308,7 @@ def register(name, fxn, device=Device.CPU):
                                                                                                               Tensor) else arg
              for arg in x]
         f = Tensor.ops[tt.device][name]
-        f.thr, f.api, f.ane, f.device = thr, api, ane, tt.device
+        f.thr, f.api, f.device = thr, api, tt.device
         return f.apply(f, *x, **kwargs)
 
     setattr(Tensor, name, dispatch)
@@ -367,4 +344,3 @@ try:
 except ImportError:
     # no GPU support
     GPU = False
-ANE = False
