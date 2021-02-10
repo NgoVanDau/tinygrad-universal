@@ -162,7 +162,7 @@ class Tensor:
             old = data
             data = np.empty(old.shape, dtype=np.float32)
             with ProfileOp("toCPU", [data]):
-                return old.cl.get()
+                return old.cl.get().reshape(old.shape)
 
         elif "ANETensor" in str(type(data)):
             if device == Device.ANE: return data
