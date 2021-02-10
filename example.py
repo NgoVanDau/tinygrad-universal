@@ -8,10 +8,15 @@ print(z)
 z = z.sum()
 print(z)
 z.backward()
-
 print(x.grad)  # dz/dx
 print(y.grad)  # dz/dy
-
-x1 = np.eye(3)
-y1 = np.array([[2.0, 0, -2.0]])
-print("np: ", np.matmul(y1, x1))
+print()
+x1 = Tensor.eye(3)
+y1 = Tensor([[2.0, 0, -2.0]])
+z1 = y1.matmul(x1)
+print(z1)
+z1 = z1.sum()
+print(z1)
+z1.backward()
+print(x1.grad)  # dz/dx
+print(y1.grad)  # dz/dy
