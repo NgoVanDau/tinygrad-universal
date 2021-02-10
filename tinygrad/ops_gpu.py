@@ -371,10 +371,10 @@ class Matmul(Function):
       GLOBAL_MEM const float *input, GLOBAL_MEM const float *weight, GLOBAL_MEM float *res,
       int isize, int is0, int is1, int msize, int ws0, int ws1, int osize
    ) {
-      int stride = get_global_id(2);
+      SIZE_T stride = get_global_id(2);
 
-      int X = get_global_id(0); // isize
-      int Y = get_global_id(1); // osize
+      SIZE_T X = get_global_id(0); // isize
+      SIZE_T Y = get_global_id(1); // osize
 
       float ret = 0.0;
       for (int x = 0; x < msize; x++) {
