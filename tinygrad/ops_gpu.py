@@ -404,7 +404,7 @@ class Matmul(Function):
         # (isize,msize) x (isize,osize) = (msize,osize)
         matmul.matmul(
                input.cl, grad_output.cl, grad_weight.cl, msize,
-               i32(1), msize, isize, i32(1), osize, osize, global_size=[isize, msize, cnt])
+               i32(1), msize, isize, i32(1), osize, osize, global_size=[msize, osize, cnt])
 
         return grad_input, grad_weight
 
