@@ -361,7 +361,7 @@ try:
     import reikna.cluda as cluda
     from tinygrad import ops_gpu
     _register_ops(ops_gpu, device=Device.GPU)
-    api = cluda.ocl_api()
+    api = cluda.cuda_api()
     thr = api.Thread.create()
     GPU = True
 except ImportError:
