@@ -1,5 +1,4 @@
 from tinygrad.tensor import Tensor
-import numpy as np
 
 x = Tensor.eye(3).gpu()
 y = Tensor([[2.0, 0, -2.0]]).gpu()
