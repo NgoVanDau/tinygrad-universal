@@ -1,13 +1,12 @@
 # inspired by https://github.com/karpathy/micrograd/blob/master/micrograd/engine.py
-import functools
+import sys
 import inspect
+import functools
 import os
 from collections import defaultdict
-
 import numpy as np
 
 # **** profiler ****
-from pycuda import gpuarray
 
 DEBUG = os.getenv("DEBUG", None) is not None
 if DEBUG:
@@ -42,14 +41,29 @@ class ProfileOp:
 
 
 # **** GPU functions ****
+api, thr = None, None
+
 
 class GPUBuffer:
     def __init__(self, shape, hostbuf=None):
         self.shape, self.dtype = tuple(shape), np.float32
-        self.gparray = gpuarray.to_gpu(hostbuf.astype(np.float32))
+        self.cl = hostbuf.cl if isinstance(hostbuf, GPUBuffer) else \
+            thr.to_device(hostbuf)
 
     def __repr__(self):
         return f"<GPUBuffer with shape {self.shape!r}>"
+
+
+# **** ANE functions ****
+
+ane = None
+
+
+def require_init_ane():
+    global ane
+    if ane is None:
+        import ane.lib.ane, tinygrad.ops_ane
+        ane = ane.lib.ane.ANE()
 
 
 # **** start with two base classes, Tensor and Function ****
@@ -147,8 +161,10 @@ class Tensor:
     def _move_data(data, device):
         if isinstance(data, GPUBuffer):
             if device == Device.GPU: return data
+            old = data
+            data = np.empty(old.shape, dtype=np.float32)
             with ProfileOp("toCPU", [data]):
-                data = data.gparray.get()
+                cl.enqueue_copy(cl_queue, data, old.cl, is_blocking=True)
 
         elif "ANETensor" in str(type(data)):
             if device == Device.ANE: return data
@@ -167,6 +183,12 @@ class Tensor:
             with ProfileOp("toGPU", [data]):
                 return GPUBuffer(data.shape, data)
 
+        elif device == Device.ANE:
+            require_init_ane()
+            with ProfileOp("toANE", [data]):
+                ndata = ane.tensor(data.shape)
+                ndata.data()[:] = data
+                return ndata
         return data
 
     def to_(self, device):
@@ -311,7 +333,7 @@ def register(name, fxn, device=Device.CPU):
                                                                                                               Tensor) else arg
              for arg in x]
         f = Tensor.ops[tt.device][name]
-        f.device = tt.device
+        f.thr, f.api, f.ane, f.device = thr, api, ane, tt.device
         return f.apply(f, *x, **kwargs)
 
     setattr(Tensor, name, dispatch)
@@ -336,13 +358,13 @@ from tinygrad import ops_cpu
 
 _register_ops(ops_cpu)
 try:
-    import pycuda.driver as cuda
-    import pycuda.autoinit
-    # TODO: move this import to require_init_gpu?
+    import reikna.cluda as cluda
     from tinygrad import ops_gpu
-
     _register_ops(ops_gpu, device=Device.GPU)
+    api = cluda.ocl_api()
+    thr = api.Thread.create()
     GPU = True
 except ImportError:
     # no GPU support
     GPU = False
+ANE = False
