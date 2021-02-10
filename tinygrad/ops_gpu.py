@@ -105,10 +105,10 @@ def reduce_op(ctx, code, code2, inp, axis=None, start="0.0"):
     res_g[gid] = """ + code2 + """;
   }""")
     reduce.reduce(inp.cl,
-           i32(np.prod(inp.shape) // np.prod(osize)), ret.cl,
-           i32(np.prod(osize)), i32(len(osize)),
-           buffer_np(ctx, np.array(inp.shape, dtype=np.int32)),
-           buffer_np(ctx, np.array(osize, dtype=np.int32)), global_size=[int(np.prod(osize))])
+                  i32(np.prod(inp.shape) // np.prod(osize)), ret.cl,
+                  i32(np.prod(osize)), i32(len(osize)),
+                  buffer_np(ctx, np.array(inp.shape, dtype=np.int32)),
+                  buffer_np(ctx, np.array(osize, dtype=np.int32)), global_size=[int(np.prod(osize))])
     return ret
 
 
@@ -166,7 +166,8 @@ def get_binop_prg(thr, code, complist):
             if complist[i][j]:
                 idx_exprs[j] = "idx_ret%d + d%d*(%s)" % (i, i, idx_exprs[j])
 
-    return thr.compile("""KERNEL void binop(GLOBAL_MEM const float *x_g, GLOBAL_MEM const float *y_g, GLOBAL_MEM float *res_g""" + args + """) {
+    return thr.compile(
+        """KERNEL void binop(GLOBAL_MEM const float *x_g, GLOBAL_MEM const float *y_g, GLOBAL_MEM float *res_g""" + args + """) {
     int gid0 = get_global_id(0);""" + "".join(compute_idx_rets) + """
     float a = x_g[""" + idx_exprs[0] + """];
     float b = y_g[""" + idx_exprs[1] + """];
@@ -197,7 +198,8 @@ def binary_op(ctx, code, x, y):
     prg = get_binop_prg(ctx.thr, code, tuple(complist))
     ret = buffer_new(ctx, shape_ret, zero=True)
     prod_list = np.array(dimlist, dtype=i32)[-1::-1].cumprod(dtype=i32)[-1::-1]  # take cumprod from back to front
-    prg.binop(x.cl, y.cl, ret.cl, *dimlist, *(prod_list[1:]), global_size=[int(prod_list[0])] if len(dimlist) > 0 else [int(1)])
+    prg.binop(x.cl, y.cl, ret.cl, *dimlist, *(prod_list[1:]),
+              global_size=[int(prod_list[0])] if len(dimlist) > 0 else [int(1)])
     return ret
 
 
@@ -386,7 +388,7 @@ class Matmul(Function):
 
         # (isize,msize) x (msize,osize) = (isize,osize)
         matmul.matmul(input.cl, weight.cl, ret.cl, isize,
-               msize, i32(1), msize, i32(1), osize, osize, global_size=[int(isize), int(osize), int(cnt)])
+                      msize, i32(1), msize, i32(1), osize, osize, global_size=[int(isize), int(osize), int(cnt)])
         return ret
 
     @staticmethod
@@ -399,12 +401,12 @@ class Matmul(Function):
 
         # (isize,osize) x (msize,osize) = (isize,msize)
         matmul.matmul(grad_output.cl, weight.cl, grad_input.cl, isize,
-               osize, i32(1), osize, osize, i32(1), msize, global_size=[int(isize), int(msize), int(cnt)])
+                      osize, i32(1), osize, osize, i32(1), msize, global_size=[int(isize), int(msize), int(cnt)])
 
         # (isize,msize) x (isize,osize) = (msize,osize)
         matmul.matmul(
-               input.cl, grad_output.cl, grad_weight.cl, msize,
-               i32(1), msize, isize, i32(1), osize, osize, global_size=[int(msize), int(osize), int(cnt)])
+            input.cl, grad_output.cl, grad_weight.cl, msize,
+            i32(1), msize, isize, i32(1), osize, osize, global_size=[int(msize), int(osize), int(cnt)])
 
         return grad_input, grad_weight
 
