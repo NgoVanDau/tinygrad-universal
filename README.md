@@ -1,4 +1,4 @@
-# Tinygrad with Cuda/OpenCL
+# Tinygrad with CUDA/OpenCL
 ### Based on [geohot/tinygrad](https://github.com/geohot/tinygrad)
 
 ## Environment variables:
