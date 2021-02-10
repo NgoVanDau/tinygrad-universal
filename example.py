@@ -4,12 +4,12 @@ import numpy as np
 x = Tensor.eye(3).gpu()
 y = Tensor([[2.0, 0, -2.0]]).gpu()
 z = y.matmul(x)
-print(z)
+print(z.cpu())
 z = z.sum()
-print(z)
+print(z.cpu())
 z.backward()
-print(x.grad)  # dz/dx
-print(y.grad)  # dz/dy
+print(x.grad.cpu())  # dz/dx
+print(y.grad.cpu())  # dz/dy
 print()
 x1 = Tensor.eye(3)
 y1 = Tensor([[2.0, 0, -2.0]])

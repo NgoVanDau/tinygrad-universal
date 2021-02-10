@@ -12,7 +12,7 @@ def buffer_np(ctx, x):
 
 
 i32 = np.int32
-global_size = 512
+global_size = 32
 
 
 # ************* unary ops *************
