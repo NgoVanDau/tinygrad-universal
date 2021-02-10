@@ -7,3 +7,4 @@
 
 ## Test results:
 - [**Windows/CUDA**](https://htmlpreview.github.io/?https://github.com/dredwardhyde/tinygrad-universal/blob/main/Test%20Results%20-%20Windows%26CUDA.html)
+- [**macOS/OpenCL**](https://htmlpreview.github.io/?https://github.com/dredwardhyde/tinygrad-universal/blob/main/Test%20Results%20-%20macOS%26OpenCL.html)
