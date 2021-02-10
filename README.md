@@ -6,3 +6,4 @@
 - **GPAPI - 'cuda'/'opencl'** - GPGPU api
 
 ## Test results:
+- [**Windows/CUDA**](https://htmlpreview.github.io/?https://github.com/dredwardhyde/tinygrad-universal/blob/main/Test%20Results%20-%20Windows%26CUDA.html)
