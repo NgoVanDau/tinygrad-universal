@@ -1,6 +1,6 @@
 import functools
 import numpy as np
-from .tensor import Function, register, GPUBuffer, Tensor, Device
+from .tensor import Function, GPUBuffer
 
 
 def buffer_new(ctx, shape, zero=False):
