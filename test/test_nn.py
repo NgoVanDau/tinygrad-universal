@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 import unittest
+
 import numpy as np
-from tinygrad.tensor import Tensor, DEFAULT_DEVICE
-from tinygrad.nn import *
-from extra.utils import get_parameters
 import torch
+
+from tinygrad.nn import *
+from tinygrad.tensor import DEFAULT_DEVICE
 
 
 @unittest.skipUnless(not DEFAULT_DEVICE, "Not Implemented")

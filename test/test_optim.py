@@ -1,9 +1,10 @@
+import unittest
+
 import numpy as np
 import torch
-import unittest
-from tinygrad.tensor import Tensor
+
 from tinygrad.optim import Adam, SGD, RMSprop
-from extra.utils import get_parameters
+from tinygrad.tensor import Tensor
 
 x_init = np.random.randn(1, 3).astype(np.float32)
 W_init = np.random.randn(3, 3).astype(np.float32)

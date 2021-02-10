@@ -1,10 +1,11 @@
-import os
-import torch
-import numpy as np
-import unittest
-import timeit
 import functools
-from tinygrad.tensor import Tensor, DEFAULT_DEVICE, Device
+import timeit
+import unittest
+
+import numpy as np
+import torch
+
+from tinygrad.tensor import Tensor
 
 
 def helper_test_op(shps, torch_fxn, tinygrad_fxn, atol=1e-6, rtol=1e-3, grad_atol=1e-6, grad_rtol=1e-3,
@@ -41,7 +42,7 @@ def helper_test_op(shps, torch_fxn, tinygrad_fxn, atol=1e-6, rtol=1e-3, grad_ato
         torch_fbp, tinygrad_fbp = np.nan, np.nan
 
     print("testing %30r   torch/tinygrad fp: %.2f / %.2f ms  bp: %.2f / %.2f ms" % (
-    shps, torch_fp, tinygrad_fp, torch_fbp - torch_fp, tinygrad_fbp - tinygrad_fp))
+        shps, torch_fp, tinygrad_fp, torch_fbp - torch_fp, tinygrad_fbp - tinygrad_fp))
 
 
 class TestOps(unittest.TestCase):

@@ -1,7 +1,9 @@
 import os
+
 import numpy as np
 from tqdm import trange
-from tinygrad.tensor import Tensor, GPU, Device
+
+from tinygrad.tensor import Tensor
 
 
 def sparse_categorical_crossentropy(out, Y):

@@ -1,6 +1,8 @@
-from tinygrad.tensor import Tensor
 import pickle
+
 import numpy as np
+
+from tinygrad.tensor import Tensor
 
 
 def fetch(url):

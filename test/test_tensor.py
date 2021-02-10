@@ -1,8 +1,10 @@
+import unittest
+
 import numpy as np
 import torch
-import unittest
-from tinygrad.tensor import Tensor, DEFAULT_DEVICE
+
 from extra.gradcheck import numerical_jacobian, jacobian, gradcheck
+from tinygrad.tensor import Tensor, DEFAULT_DEVICE
 
 x_init = np.random.randn(1, 3).astype(np.float32)
 U_init = np.random.randn(3, 3).astype(np.float32)

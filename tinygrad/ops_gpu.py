@@ -1,5 +1,7 @@
 import functools
+
 import numpy as np
+
 from .tensor import Function, GPUBuffer
 
 
@@ -459,7 +461,8 @@ class Conv2D(Function):
 
         conv.conv(x.cl, w.cl, ret.cl,
                   i32(H), i32(W), i32(groups), i32(rcout), i32(cin),
-                  i32(oy), i32(ox), i32(iy), i32(ix), i32(ys), i32(xs), global_size=[int(bs * groups * rcout), int(oy), int(ox)])
+                  i32(oy), i32(ox), i32(iy), i32(ix), i32(ys), i32(xs),
+                  global_size=[int(bs * groups * rcout), int(oy), int(ox)])
         return ret
 
     @staticmethod
@@ -529,6 +532,7 @@ class Conv2D(Function):
 
         conv_args = i32(H), i32(W), i32(ctx.groups), i32(rcout), i32(cin), i32(oy), i32(ox), i32(iy), i32(ix), i32(
             ys), i32(xs), i32(bs)
-        convw.convw(x.cl, grad_output.cl, dw.cl, *conv_args, global_size=[int(ctx.groups * rcout * cin), int(H), int(W)])
+        convw.convw(x.cl, grad_output.cl, dw.cl, *conv_args,
+                    global_size=[int(ctx.groups * rcout * cin), int(H), int(W)])
         convx.convx(w.cl, grad_output.cl, dx.cl, *conv_args, global_size=[int(bs), int(ctx.groups), int(cin)])
         return dx, dw

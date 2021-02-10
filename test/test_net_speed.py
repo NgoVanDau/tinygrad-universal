@@ -1,9 +1,11 @@
 #!/usr/bin/env python
-import time
 import cProfile
 import pstats
+import time
 import unittest
+
 import torch
+
 from tinygrad.tensor import Tensor
 
 

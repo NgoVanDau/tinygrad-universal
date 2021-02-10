@@ -1,7 +1,8 @@
-import numpy as np
-from PIL import Image
 import os
 import sys
+
+import numpy as np
+from PIL import Image
 
 sys.path.append(os.getcwd())
 sys.path.append(os.path.join(os.getcwd(), 'test'))

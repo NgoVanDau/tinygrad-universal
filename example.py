@@ -1,4 +1,5 @@
 import os
+
 os.environ['GPAPI'] = 'cuda'
 
 from tinygrad.tensor import Tensor

@@ -1,11 +1,12 @@
 #!/usr/bin/env python
-import os
 import unittest
+
 import numpy as np
-from tinygrad.tensor import Tensor
+
 import tinygrad.optim as optim
 from extra.training import train, evaluate
 from extra.utils import fetch, get_parameters
+from tinygrad.tensor import Tensor
 
 
 # mnist loader

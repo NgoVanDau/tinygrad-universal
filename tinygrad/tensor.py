@@ -1,9 +1,9 @@
 # inspired by https://github.com/karpathy/micrograd/blob/master/micrograd/engine.py
-import sys
-import inspect
 import functools
+import inspect
 import os
 from collections import defaultdict
+
 import numpy as np
 
 # **** profiler ****
