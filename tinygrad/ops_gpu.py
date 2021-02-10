@@ -24,7 +24,7 @@ def unary_op(ctx, code, x):
     float a = a_g[gid];
     res_g[gid] = """ + code + """;
   }""")
-    unop(x.cl, ret.cl, global_size=[np.prod(ret.shape)])
+    unop(x.cl, ret.cl, global_size=[int(np.prod(ret.shape))])
     return ret
 
 
@@ -284,10 +284,10 @@ class Reshape(Function):
 def perm_axis(ctx, inp, order):
     osize = np.array(inp.shape)[list(order)]
     ret = buffer_new(ctx, osize)
-    perm = clbuild(ctx.cl_ctx, "perm", """
-  __kernel void perm(__global const float *a_g, __global float *res_g, int n_axis,
-                       __global const int *shape, __global const int *order) {
-    int gid = get_global_id(0);
+    perm = ctx.thr.compile("""
+  KERNEL void perm(GLOBAL_MEM const float *a_g, GLOBAL_MEM float *res_g, int n_axis,
+                       GLOBAL_MEM const int *shape, GLOBAL_MEM const int *order) {
+    SIZE_T gid = get_global_id(0);
     int gi = gid;
     int idx = 0;
     for(int i = n_axis-1; i>-1; i--) {
@@ -298,9 +298,9 @@ def perm_axis(ctx, inp, order):
     }
     res_g[gid] = a_g[idx];
     }""")
-    perm(ctx.cl_queue, [np.prod(osize)], None, inp.cl, ret.cl, i32(len(osize)),
-         buffer_np(ctx, np.array(inp.shape, dtype=np.int32)),
-         buffer_np(ctx, np.array(order, dtype=np.int32)))
+    perm.perm(inp.cl, ret.cl, i32(len(osize)),
+              buffer_np(ctx, np.array(inp.shape, dtype=np.int32)),
+              buffer_np(ctx, np.array(order, dtype=np.int32)), global_size=[int(np.prod(osize))])
     return ret
 
 
@@ -320,11 +320,11 @@ def inner_slice(ctx, x, arg):
     shift = [y[0] for y in arg]
     oshape = [y[1] - y[0] for y in arg]
     ret = buffer_new(ctx, oshape)
-    gslice = clbuild(ctx.cl_ctx, "gslice", """
-  __kernel void gslice(__global const float *input, __global float *output, int prod, int n_dims,
-                       __global const int *shape_x, __global const int *shape_ret,
-                       __global const int *shift) {
-    int gid = get_global_id(0);
+    gslice = ctx.thr.compile("""
+  KERNEL void gslice(GLOBAL_MEM const float *input, GLOBAL_MEM float *output, int prod, int n_dims,
+                       GLOBAL_MEM const int *shape_x, GLOBAL_MEM const int *shape_ret,
+                       GLOBAL_MEM const int *shift) {
+    SIZE_T gid = get_global_id(0);
     int iptr = 0;
     int zero = 1;
     for (int dim = 0; dim < n_dims; dim++) {
@@ -335,11 +335,10 @@ def inner_slice(ctx, x, arg):
     }
     output[gid] = zero ? input[iptr] : 0.0;
   }""")
-    gslice(ctx.cl_queue, [np.prod(ret.shape)], None,
-           x.cl, ret.cl, i32(np.prod(ret.shape)), i32(len(ret.shape)),
-           buffer_np(ctx, np.array(x.shape, dtype=np.int32)),
-           buffer_np(ctx, np.array(ret.shape, dtype=np.int32)),
-           buffer_np(ctx, np.array(shift, dtype=np.int32)))
+    gslice.gslice(x.cl, ret.cl, i32(np.prod(ret.shape)), i32(len(ret.shape)),
+                  buffer_np(ctx, np.array(x.shape, dtype=np.int32)),
+                  buffer_np(ctx, np.array(ret.shape, dtype=np.int32)),
+                  buffer_np(ctx, np.array(shift, dtype=np.int32)), global_size=[int(np.prod(ret.shape))])
     return ret
 
 
@@ -433,8 +432,8 @@ class Conv2D(Function):
         # weight = (groups, rcout, cin, H, W)
         # output = (bs, groups, rcout, oy, ox)
 
-        conv = clbuild(ctx.cl_ctx, "conv", """
-    __kernel void conv(__global const float *input, __global const float *weight, __global float *output,
+        conv = ctx.thr.compile("""
+    KERNEL void conv(GLOBAL_MEM const float *input, GLOBAL_MEM const float *weight, GLOBAL_MEM float *output,
       int H, int W, int groups, int rcout, int cin, int oy, int ox, int iy, int ix, int ys, int xs) {
 
       int B = get_global_id(0)/(groups*rcout);  // range 0-bs
@@ -458,11 +457,9 @@ class Conv2D(Function):
       output[B*groups*rcout*oy*ox + g*rcout*oy*ox + c*oy*ox + Y*ox + X] = acc;
     }""")
 
-        conv(ctx.cl_queue, [bs * groups * rcout, oy, ox], None,
-             x.cl, w.cl, ret.cl,
-             i32(H), i32(W), i32(groups), i32(rcout), i32(cin),
-             i32(oy), i32(ox), i32(iy), i32(ix), i32(ys), i32(xs)
-             )
+        conv.conv(x.cl, w.cl, ret.cl,
+                  i32(H), i32(W), i32(groups), i32(rcout), i32(cin),
+                  i32(oy), i32(ox), i32(iy), i32(ix), i32(ys), i32(xs), global_size=[int(bs * groups * rcout, oy, ox)])
         return ret
 
     @staticmethod
@@ -484,8 +481,8 @@ class Conv2D(Function):
         # tensw = (groups*rcout, cin, H, W)
         # ggg = (bs, groups*rout, oy, ox)
 
-        convw = clbuild(ctx.cl_ctx, "convw", """
-    __kernel void convw(__global const float *tensx, __global const float *ggg, __global float *dw,
+        convw = ctx.thr.compile("""
+    KERNEL void convw(GLOBAL_MEM const float *tensx, GLOBAL_MEM const float *ggg, GLOBAL_MEM float *dw,
       int H, int W, int groups, int rcout, int cin, int oy, int ox, int iy, int ix, int ys, int xs, int bs) {
 
       int g = get_global_id(0)/(rcout*cin) ; // range 0-groups
@@ -505,8 +502,8 @@ class Conv2D(Function):
       }
       dw[get_global_id(0)*H*W + y*W + x] = acc;
     }""")
-        convx = clbuild(ctx.cl_ctx, "convx", """
-    __kernel void convx(__global const float *tensw, __global const float *ggg, __global float *dx,
+        convx = ctx.thr.compile("""
+    KERNEL void convx(GLOBAL_MEM const float *tensw, GLOBAL_MEM const float *ggg, GLOBAL_MEM float *dx,
       int H, int W, int groups, int rcout, int cin, int oy, int ox, int iy, int ix, int ys, int xs, int bs) {
 
       int B = get_global_id(0);
@@ -532,6 +529,6 @@ class Conv2D(Function):
 
         conv_args = i32(H), i32(W), i32(ctx.groups), i32(rcout), i32(cin), i32(oy), i32(ox), i32(iy), i32(ix), i32(
             ys), i32(xs), i32(bs)
-        convw(ctx.cl_queue, [ctx.groups * rcout * cin, H, W], None, x.cl, grad_output.cl, dw.cl, *conv_args)
-        convx(ctx.cl_queue, [bs, ctx.groups, cin], None, w.cl, grad_output.cl, dx.cl, *conv_args)
+        convw.convw(x.cl, grad_output.cl, dw.cl, *conv_args, global_size=[int(ctx.groups * rcout * cin), int(H), int(W)])
+        convx.convx(w.cl, grad_output.cl, dx.cl, *conv_args, global_size=[int(bs), int(ctx.groups), int(cin)])
         return dx, dw
