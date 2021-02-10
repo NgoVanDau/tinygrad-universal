@@ -48,7 +48,7 @@ class GPUBuffer:
     def __init__(self, shape, hostbuf=None):
         self.shape, self.dtype = tuple(shape), np.float32
         self.cl = hostbuf.cl if isinstance(hostbuf, GPUBuffer) else \
-            thr.to_device(hostbuf)
+            thr.to_device(hostbuf.astype(np.float32) if hostbuf is not None else np.zeros(shape, np.float32))
 
     def __repr__(self):
         return f"<GPUBuffer with shape {self.shape!r} and data {self.cl.get()}>"
@@ -361,7 +361,7 @@ try:
     import reikna.cluda as cluda
     from tinygrad import ops_gpu
     _register_ops(ops_gpu, device=Device.GPU)
-    api = cluda.cuda_api()
+    api = cluda.ocl_api()
     thr = api.Thread.create()
     GPU = True
 except ImportError:

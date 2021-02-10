@@ -3,8 +3,8 @@ import numpy as np
 from .tensor import Function, register, GPUBuffer, Tensor, Device
 
 
-def buffer_new(ctx, shape):
-    return GPUBuffer(shape, hostbuf=np.zeros(shape, dtype=np.float32))
+def buffer_new(ctx, shape, zero=False):
+    return GPUBuffer(shape, hostbuf=None if not zero else np.zeros(shape, dtype=np.float32))
 
 
 def buffer_np(ctx, x):
@@ -12,7 +12,6 @@ def buffer_np(ctx, x):
 
 
 i32 = np.int32
-global_size = 32
 
 
 # ************* unary ops *************
@@ -25,7 +24,7 @@ def unary_op(ctx, code, x):
     float a = a_g[gid];
     res_g[gid] = """ + code + """;
   }""")
-    unop(x.cl, ret.cl, global_size=global_size)
+    unop(x.cl, ret.cl, global_size=[np.prod(ret.shape)])
     return ret
 
 
@@ -109,7 +108,7 @@ def reduce_op(ctx, code, code2, inp, axis=None, start="0.0"):
            i32(np.prod(inp.shape) // np.prod(osize)), ret.cl,
            i32(np.prod(osize)), i32(len(osize)),
            buffer_np(ctx, np.array(inp.shape, dtype=np.int32)),
-           buffer_np(ctx, np.array(osize, dtype=np.int32)), global_size=global_size)
+           buffer_np(ctx, np.array(osize, dtype=np.int32)), global_size=[np.prod(osize)])
     return ret
 
 
@@ -128,7 +127,7 @@ class Sum(Function):
         input, axis = ctx.saved_tensors
         shape = [1 if axis is None or i in axis else input.shape[i] for i in range(len(input.shape))]
         output = GPUBuffer(shape, hostbuf=grad_output)
-        return binary_op(ctx, 'a+b', output, buffer_new(ctx, input.shape))
+        return binary_op(ctx, 'a+b', output, buffer_new(ctx, input.shape, zero=True))
 
 
 class Max(Function):
@@ -196,10 +195,9 @@ def binary_op(ctx, code, x, y):
         push(i32(max(shape_x[i], shape_y[i])), (shape_x[i] > 1, shape_y[i] > 1))
 
     prg = get_binop_prg(ctx.thr, code, tuple(complist))
-    ret = buffer_new(ctx, shape_ret)
+    ret = buffer_new(ctx, shape_ret, zero=True)
     prod_list = np.array(dimlist, dtype=i32)[-1::-1].cumprod(dtype=i32)[-1::-1]  # take cumprod from back to front
-    prg.binop(x.cl, y.cl, ret.cl, *dimlist,
-              *(prod_list[1:]), global_size=global_size)
+    prg.binop(x.cl, y.cl, ret.cl, *dimlist, *(prod_list[1:]), global_size=[prod_list[0]] if len(dimlist) > 0 else [1])
     return ret
 
 
@@ -375,7 +373,7 @@ class Matmul(Function):
 
       SIZE_T X = get_global_id(0); // isize
       SIZE_T Y = get_global_id(1); // osize
-
+      
       float ret = 0.0;
       for (int x = 0; x < msize; x++) {
         ret += input[X * is0 + x * is1 + isize*msize*stride] *
@@ -388,7 +386,7 @@ class Matmul(Function):
 
         # (isize,msize) x (msize,osize) = (isize,osize)
         matmul.matmul(input.cl, weight.cl, ret.cl, isize,
-               msize, i32(1), msize, i32(1), osize, osize, global_size=global_size)
+               msize, i32(1), msize, i32(1), osize, osize, global_size=[isize, osize, cnt])
         return ret
 
     @staticmethod
@@ -401,12 +399,12 @@ class Matmul(Function):
 
         # (isize,osize) x (msize,osize) = (isize,msize)
         matmul.matmul(grad_output.cl, weight.cl, grad_input.cl, isize,
-               osize, i32(1), osize, osize, i32(1), msize, global_size=global_size)
+               osize, i32(1), osize, osize, i32(1), msize, global_size=[isize, msize, cnt])
 
         # (isize,msize) x (isize,osize) = (msize,osize)
         matmul.matmul(
                input.cl, grad_output.cl, grad_weight.cl, msize,
-               i32(1), msize, isize, i32(1), osize, osize, global_size=global_size)
+               i32(1), msize, isize, i32(1), osize, osize, global_size=[isize, msize, cnt])
 
         return grad_input, grad_weight
 
@@ -477,7 +475,7 @@ class Conv2D(Function):
         assert cout % ctx.groups == 0
         rcout = cout // ctx.groups
 
-        dx = buffer_new(ctx, (bs, cin_, iy, ix))
+        dx = buffer_new(ctx, (bs, cin_, iy, ix), zero=True)
         dw = buffer_new(ctx, (cout, cin, H, W))
 
         # tensx = (bs, groups*cin, iy, ix)
