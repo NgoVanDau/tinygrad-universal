@@ -360,8 +360,9 @@ try:
     from tinygrad import ops_gpu
 
     _register_ops(ops_gpu, device=Device.GPU)
-    api = cluda.cuda_api()
+    api = cluda.cuda_api() if os.environ.get("GPAPI", "opencl") == "cuda" else cluda.ocl_api()
     thr = api.Thread.create()
+    print("Device: ", thr.device_params._device.name)
     GPU = True
 except ImportError:
     # no GPU support
