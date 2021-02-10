@@ -51,7 +51,7 @@ class GPUBuffer:
             thr.to_device(hostbuf)
 
     def __repr__(self):
-        return f"<GPUBuffer with shape {self.shape!r}>"
+        return f"<GPUBuffer with shape {self.shape!r} and data {self.cl.get()}>"
 
 
 # **** ANE functions ****
@@ -164,7 +164,7 @@ class Tensor:
             old = data
             data = np.empty(old.shape, dtype=np.float32)
             with ProfileOp("toCPU", [data]):
-                cl.enqueue_copy(cl_queue, data, old.cl, is_blocking=True)
+                return old.cl.get()
 
         elif "ANETensor" in str(type(data)):
             if device == Device.ANE: return data
@@ -361,7 +361,7 @@ try:
     import reikna.cluda as cluda
     from tinygrad import ops_gpu
     _register_ops(ops_gpu, device=Device.GPU)
-    api = cluda.ocl_api()
+    api = cluda.cuda_api()
     thr = api.Thread.create()
     GPU = True
 except ImportError:
