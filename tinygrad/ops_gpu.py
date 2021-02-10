@@ -24,7 +24,7 @@ def unary_op(ctx, code, x):
     float a = a_g[gid];
     res_g[gid] = """ + code + """;
   }""")
-    unop(x.cl, ret.cl, global_size=[int(np.prod(ret.shape))])
+    unop.unop(x.cl, ret.cl, global_size=[int(np.prod(ret.shape))])
     return ret
 
 
@@ -459,7 +459,7 @@ class Conv2D(Function):
 
         conv.conv(x.cl, w.cl, ret.cl,
                   i32(H), i32(W), i32(groups), i32(rcout), i32(cin),
-                  i32(oy), i32(ox), i32(iy), i32(ix), i32(ys), i32(xs), global_size=[int(bs * groups * rcout, oy, ox)])
+                  i32(oy), i32(ox), i32(iy), i32(ix), i32(ys), i32(xs), global_size=[int(bs * groups * rcout), int(oy), int(ox)])
         return ret
 
     @staticmethod
